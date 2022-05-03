@@ -1,0 +1,83 @@
+---
+title: "Exercise 1"
+author: "Ze Hong Zhou"
+date: "09/10/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+# required packages: tidyverse, ggrepel
+```
+
+```{r dataset, message = FALSE}
+library(tidyverse)
+records <- read_csv("records.csv")
+```  
+&nbsp;  
+
+# Plot 1
+
+```{r plot_1}
+filter(records, type == "Three Lap", shortcut == "No") %>% #filter relevant data
+  ggplot() + 
+  geom_line(aes(x = date, y = time)) + #line plot
+  facet_wrap(~ track, scales = "free") + #faceting
+  ggtitle("How the three lap, with no shortcut world record develop over time") #title
+```  
+&nbsp;  
+
+# Plot 2
+
+```{r plot_2}
+dat_p2 <- filter(records, track == "Rainbow Road") %>% #filter relevant data
+  mutate(Race = case_when(
+    # Condense type and shortcut variables into the Race variable
+    (type == "Single Lap") & (shortcut == "No") ~ "Single Lap with no shortcut",
+    (type == "Single Lap") & (shortcut == "Yes") ~ "Single Lap with shortcut",
+    (type == "Three Lap") & (shortcut == "No") ~ "Three Lap with no shortcut",
+    (type == "Three Lap") & (shortcut == "Yes") ~ "Three Lap with shortcut"
+  ))
+
+ggplot(dat_p2, aes(x = date, y = time, colour = Race)) + #global data and aesthetics
+  geom_line() + geom_point() + #line and point geoms
+  labs(title = "How the WR for Rainbow Road develop over time",
+       subtitle = "With shortcuts, it is quicker to finish a 3 lap race than completing a single lap!") #title and subtitle
+```  
+&nbsp;
+
+# Plot 3
+
+```{r plot_3, warning = FALSE}
+dat_p3 <- records %>% 
+  filter(type == "Three Lap", shortcut == "No") %>% #filter relevant data
+  group_by(track) %>% 
+  filter(time %in% c(max(time), min(time))) %>% #filter max and min time for each track
+  mutate(WR = factor(c("Original", "Current"), 
+                     levels = c("Original", "Current"))) #add factor variable WR; level "Original" needs to be first to produce the plot
+
+ggplot(dat_p3, aes(x = WR, y = time, colour = track)) + #global data and aesthetics
+  geom_line(aes(group = track)) + #line geom; we need to override the grouping by using the grouping aesthetic
+  geom_point() + #point geom
+  ggrepel::geom_label_repel(data = dat_p3 %>% filter(WR == "Current"), #label only the right point
+                            mapping = aes(label = track)) + #provide label aesthetic
+  labs(title = "Comparing the Original and Current WR for three lap \nand no shortcut races", 
+       subtitle = "All lines are relatively parallel.") #title and subtitle
+```  
+&nbsp;  
+
+# Plot 4
+
+```{r plot_4}
+dat_p4 <- dat_p3 %>% 
+  group_by(track) %>% 
+  summarise(dif = max(time) - min(time)) #compute the time difference
+
+ggplot(dat_p4) + #provide data
+  geom_col(aes(x = track, y = dif)) + #col geom; provide aesthetics
+  coord_flip() + #switch x and y coordinate planes
+  labs(title = "Time Difference between Original and Current WR for three lap \nand no shortcut races", 
+       subtitle = "D.K.'s Jungle Parkway has the biggest reduction even it's not the longest track.", 
+       x = "Track",
+       y = "Time Difference between Original and Current WR (in s)") #title, subtitle, and axis names
+```
